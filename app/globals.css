@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-space-grotesk);
+  --color-riko-green: #22C55E;
+  --color-riko-green-dark: #16A34A;
+}
+
+:root {
+  /* Backgrounds — dark baseline */
+  --bg-primary: #0F1117;
+  --bg-secondary: #1A1F2E;
+  --bg-surface: #242937;
+  --bg-hover: #2D3548;
+  --border: #334155;
+
+  /* Text */
+  --text-1: #F8FAFC;
+  --text-2: #CBD5E1;
+  --text-3: #94A3B8;
+  --text-4: #64748B;
+
+  /* Semantic */
+  --green: #22C55E;
+  --green-dark: #16A34A;
+  --green-bg: #052E16;
+  --red: #EF4444;
+  --red-bg: rgba(239,68,68,.12);
+  --yellow: #F59E0B;
+  --yellow-bg: rgba(245,158,11,.12);
+  --blue: #3B82F6;
+  --blue-bg: rgba(59,130,246,.12);
+  --orange: #F97316;
+  --purple: #A855F7;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-1);
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*:focus { outline: none; }
+*:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--green);
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
