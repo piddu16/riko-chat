@@ -20,6 +20,22 @@ export interface AssistantMessage {
   action?: ActionBlock;
   /** Artifacts rendered inline with this response (tables, charts, lists) */
   artifacts?: Artifact[];
+  /** Heavyweight artifacts that open in the right-side canvas (desktop)
+   *  or a separate view on mobile. Only id + title + kind travel on the
+   *  message; the full artifact lives in the conversation's canvasArtifacts. */
+  canvasRefs?: CanvasRef[];
+}
+
+/** Pointer stored on a message — opens the referenced artifact in the canvas. */
+export interface CanvasRef {
+  id: string;
+  kind: CanvasArtifact["kind"];
+  title: string;
+  subtitle?: string;
+  /** If true, the canvas auto-opens on this message. Default: true for the
+   *  first canvas-generating response; false if the user has previously closed
+   *  the canvas this session. */
+  autoOpen?: boolean;
 }
 
 export type Message = UserMessage | AssistantMessage;
@@ -62,12 +78,111 @@ export interface MomentCard {
   seedQuery: string;        // What to send as the user message when tapped
 }
 
+/* ── Canvas (right-side / full-screen-on-mobile) artifacts ── */
+
+export type CanvasArtifact =
+  | RevenueChartArtifact
+  | MisReportArtifact
+  | ReconReportArtifact
+  | InvoiceArtifact;
+
+export interface RevenueChartArtifact {
+  id: string;
+  kind: "revenue-chart";
+  title: string;
+  subtitle?: string;
+  /** 12 months of current FY, Apr → Mar */
+  fy25: number[];
+  /** 12 months of prior FY, Apr → Mar (ghost bar overlay) */
+  fy24: number[];
+  months: string[]; // length 12
+  currentFYLabel: string;
+  priorFYLabel: string;
+}
+
+export interface MisReportArtifact {
+  id: string;
+  kind: "mis-report";
+  title: string;
+  company: string;
+  gstin?: string;
+  period: string;
+  preparedBy: string;
+  sections: MisSection[];
+}
+
+export interface MisSection {
+  heading: string;
+  kind: "kpi-grid" | "pl-table" | "aging-bars" | "commentary";
+  /** KPI grid */
+  kpis?: Array<{ label: string; value: string; delta?: string; tone?: "green" | "red" | "yellow" | "neutral" }>;
+  /** P&L / BS table */
+  rows?: Array<{ label: string; current: string; prior?: string; variance?: string; emphasis?: boolean; indent?: 0 | 1 | 2 }>;
+  /** Aging / stacked bars */
+  segments?: Array<{ label: string; value: number; color: string; amount: string }>;
+  /** Free-form commentary paragraphs */
+  paragraphs?: string[];
+}
+
+export interface ReconReportArtifact {
+  id: string;
+  kind: "recon-report";
+  title: string;
+  period: string;
+  summary: {
+    matched: number;
+    manualMatched: number;
+    partialMatch: number;
+    mismatches: number;
+    missingFromPortal: number;
+    missingFromTally: number;
+    total: number;
+    itcAtRisk: string;
+  };
+  lines: ReconLine[];
+}
+
+export interface ReconLine {
+  id: string;
+  supplier: string;
+  invoiceNo: string;
+  date: string;
+  status: "matched" | "manual_matched" | "partial_match" | "mismatch" | "missing_portal" | "missing_tally";
+  tallyAmount: number | null;
+  portalAmount: number | null;
+  issue?: string;
+}
+
+export interface InvoiceArtifact {
+  id: string;
+  kind: "invoice";
+  title: string;
+  invoiceNo: string;
+  date: string;
+  dueDate: string;
+  sellerName: string;
+  sellerGstin: string;
+  sellerAddress: string;
+  buyerName: string;
+  buyerGstin?: string;
+  buyerAddress: string;
+  lineItems: Array<{ description: string; hsn: string; qty: number; rate: number; amount: number; taxRate: number }>;
+  subtotal: number;
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+  amountInWords: string;
+  notes?: string;
+}
+
 /* ── Conversation shape (for history/persistence) ── */
 
 export interface Conversation {
   id: string;
   title: string;            // Auto-generated from first user message
   messages: Message[];
+  canvasArtifacts: CanvasArtifact[];
   createdAt: string;
   updatedAt: string;
 }

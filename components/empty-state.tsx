@@ -7,9 +7,20 @@ import {
   Package,
   CalendarClock,
   TrendingDown,
+  FileText,
+  GitCompareArrows,
+  BarChart3,
+  Receipt,
 } from "lucide-react";
 import type { MomentCard } from "@/lib/types";
 import { MOMENT_CARDS } from "@/lib/mock-data";
+
+const CAPABILITIES = [
+  { icon: FileText, label: "Generate MIS report", query: "Generate the March MIS report" },
+  { icon: GitCompareArrows, label: "Reconcile 2B", query: "Reconcile my 2B for March" },
+  { icon: BarChart3, label: "Revenue chart", query: "Show me the revenue chart" },
+  { icon: Receipt, label: "Draft invoice", query: "Create an invoice for Nykaa" },
+];
 
 const ICON_MAP = {
   "alert-triangle": AlertTriangle,
@@ -58,6 +69,36 @@ export function EmptyState({ onSeed }: { onSeed: (query: string) => void }) {
           {MOMENT_CARDS.map((card, i) => (
             <MomentCardView key={card.id} card={card} index={i} onSeed={onSeed} />
           ))}
+        </div>
+
+        {/* Capability chips — "Riko can also..." */}
+        <div className="mt-8">
+          <p className="text-[11px] uppercase tracking-wider mb-3" style={{ color: "var(--text-4)" }}>
+            Riko can also
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {CAPABILITIES.map((cap, i) => {
+              const Icon = cap.icon;
+              return (
+                <motion.button
+                  key={cap.label}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.3 + i * 0.04 }}
+                  onClick={() => onSeed(cap.query)}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-2 rounded-full cursor-pointer transition-colors"
+                  style={{
+                    background: "var(--bg-surface)",
+                    color: "var(--text-2)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <Icon size={13} style={{ color: "var(--green)" }} />
+                  {cap.label}
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
       </motion.div>
     </div>

@@ -5,11 +5,18 @@ import { useState } from "react";
 import { ChevronDown, Copy } from "lucide-react";
 import type { Message, AssistantMessage } from "@/lib/types";
 import { ArtifactRenderer, ActionButton } from "./artifacts";
+import { CanvasPreviewCard } from "./canvas-preview-card";
 
 /* ── Router ── */
-export function MessageRenderer({ message }: { message: Message }) {
+export function MessageRenderer({
+  message,
+  onOpenCanvas,
+}: {
+  message: Message;
+  onOpenCanvas?: (id: string) => void;
+}) {
   if (message.role === "user") return <UserMessage content={message.content} />;
-  return <AssistantMessageRender message={message} />;
+  return <AssistantMessageRender message={message} onOpenCanvas={onOpenCanvas} />;
 }
 
 /* ── User message — right-aligned, subtle ── */
@@ -36,7 +43,13 @@ function UserMessage({ content }: { content: string }) {
 }
 
 /* ── Assistant message — no bubble, prose-forward, 4 layers ── */
-function AssistantMessageRender({ message }: { message: AssistantMessage }) {
+function AssistantMessageRender({
+  message,
+  onOpenCanvas,
+}: {
+  message: AssistantMessage;
+  onOpenCanvas?: (id: string) => void;
+}) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   return (
@@ -56,6 +69,19 @@ function AssistantMessageRender({ message }: { message: AssistantMessage }) {
       >
         {message.answer}
       </p>
+
+      {/* Canvas preview cards — for heavyweight artifacts that opened in the canvas */}
+      {message.canvasRefs && message.canvasRefs.length > 0 && (
+        <div className="space-y-2 mb-4">
+          {message.canvasRefs.map((ref_) => (
+            <CanvasPreviewCard
+              key={ref_.id}
+              ref_={ref_}
+              onOpen={() => onOpenCanvas?.(ref_.id)}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Artifacts (inline, always visible) */}
       {message.artifacts && message.artifacts.length > 0 && (
