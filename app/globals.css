@@ -7,8 +7,12 @@
   --color-riko-green-dark: #16A34A;
 }
 
-:root {
-  /* Backgrounds — dark baseline */
+/* ── Dark theme (default) ── */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Backgrounds */
   --bg-primary: #0F1117;
   --bg-secondary: #1A1F2E;
   --bg-surface: #242937;
@@ -21,7 +25,7 @@
   --text-3: #94A3B8;
   --text-4: #64748B;
 
-  /* Semantic */
+  /* Semantic — colors stay consistent; backgrounds are tinted */
   --green: #22C55E;
   --green-dark: #16A34A;
   --green-bg: #052E16;
@@ -33,9 +37,56 @@
   --blue-bg: rgba(59,130,246,.12);
   --orange: #F97316;
   --purple: #A855F7;
+
+  /* Utility — theme-adaptive effects */
+  --overlay: rgba(0,0,0,0.6);          /* modal / drawer backdrop */
+  --shadow-composer: 0 -4px 24px rgba(0,0,0,0.2);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.15);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.25);
 }
 
-html { scroll-behavior: smooth; }
+/* ── Light theme ── */
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Backgrounds */
+  --bg-primary: #FAFAFA;               /* page */
+  --bg-secondary: #FFFFFF;             /* elevated */
+  --bg-surface: #F5F6F8;               /* card */
+  --bg-hover: #EEF0F4;                 /* hover / pressed */
+  --border: #E2E8F0;                   /* hairlines */
+
+  /* Text */
+  --text-1: #0F172A;
+  --text-2: #334155;
+  --text-3: #64748B;
+  --text-4: #94A3B8;
+
+  /* Semantic — same hues, light tinted backgrounds */
+  --green: #16A34A;                    /* slightly darker green for contrast on white */
+  --green-dark: #15803D;
+  --green-bg: #F0FDF4;
+  --red: #DC2626;
+  --red-bg: #FEF2F2;
+  --yellow: #D97706;
+  --yellow-bg: #FFFBEB;
+  --blue: #2563EB;
+  --blue-bg: #EFF6FF;
+  --orange: #EA580C;
+  --purple: #9333EA;
+
+  /* Utility */
+  --overlay: rgba(15,23,42,0.35);
+  --shadow-composer: 0 -4px 20px rgba(15,23,42,0.06);
+  --shadow-sm: 0 1px 2px rgba(15,23,42,0.06);
+  --shadow-md: 0 4px 12px rgba(15,23,42,0.08);
+}
+
+html {
+  scroll-behavior: smooth;
+  /* Theme transitions — subtle, no layout shift */
+  transition: background-color 0.2s;
+}
 
 body {
   background: var(--bg-primary);
@@ -43,6 +94,7 @@ body {
   font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.2s, color 0.2s;
 }
 
 * {

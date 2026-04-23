@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Plus, MessageSquareText, Settings, Sparkles } from "lucide-react";
 import type { Conversation } from "@/lib/types";
+import { ThemeToggle } from "./theme-toggle";
 
 export function Sidebar({
   conversations,
@@ -107,9 +108,10 @@ export function Sidebar({
 
       {/* Footer */}
       <div
-        className="px-3 py-3 flex-shrink-0"
+        className="px-3 py-3 flex-shrink-0 space-y-0.5"
         style={{ borderTop: "1px solid var(--border)" }}
       >
+        <ThemeToggle />
         <button
           className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
           style={{ color: "var(--text-3)" }}

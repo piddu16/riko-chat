@@ -14,6 +14,7 @@ import { Composer } from "./composer";
 import { EmptyState } from "./empty-state";
 import { MessageRenderer } from "./message";
 import { Canvas } from "./canvas/canvas";
+import { ThemeToggle } from "./theme-toggle";
 
 type MobileView = "chat" | "canvas";
 
@@ -217,7 +218,7 @@ export function Chat() {
                 exit={{ opacity: 0 }}
                 onClick={() => setSidebarOpen(false)}
                 className="fixed inset-0 z-40"
-                style={{ background: "rgba(0,0,0,0.6)" }}
+                style={{ background: "var(--overlay)" }}
               />
               <motion.div
                 initial={{ x: -280 }}
@@ -276,7 +277,8 @@ export function Chat() {
             >
               {activeConv?.title ?? "Riko"}
             </span>
-            <div className="w-8 flex items-center justify-end">
+            <div className="flex items-center justify-end gap-0.5">
+              <ThemeToggle compact />
               {/* Mobile: switch to canvas view */}
               {isMobile && hasCanvas && (
                 <button

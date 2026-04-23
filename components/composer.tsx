@@ -56,7 +56,7 @@ export function Composer({
           style={{
             background: "var(--bg-surface)",
             border: "1px solid var(--border)",
-            boxShadow: "0 -4px 24px rgba(0,0,0,0.2)",
+            boxShadow: "var(--shadow-composer)",
           }}
         >
           <button
