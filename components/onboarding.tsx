@@ -45,14 +45,16 @@ export function OnboardingModal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.96 }}
             transition={{ duration: 0.3, ease: "easeOut" }}
-            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[90] flex items-center justify-center p-4 overflow-y-auto"
           >
             <div
-              className="w-full max-w-md rounded-2xl p-7 md:p-8"
+              className="w-full max-w-md rounded-2xl p-6 md:p-8 my-auto"
               style={{
                 background: "var(--bg-secondary)",
                 border: "1px solid var(--border)",
                 boxShadow: "var(--shadow-md)",
+                maxHeight: "calc(100svh - 32px)",
+                overflowY: "auto",
               }}
               onClick={(e) => e.stopPropagation()}
             >

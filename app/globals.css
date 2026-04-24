@@ -86,6 +86,11 @@ html {
   scroll-behavior: smooth;
   /* Theme transitions — subtle, no layout shift */
   transition: background-color 0.2s;
+  /* Prevent iOS text auto-zoom when orienting */
+  -webkit-text-size-adjust: 100%;
+  /* Let the root own the viewport; stop the page from scrolling on mobile */
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -95,11 +100,43 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   transition: background 0.2s, color 0.2s;
+  /* Hard-bind the body to the html so we never get accidental outer scroll */
+  height: 100%;
+  overflow: hidden;
+  /* Respect iOS home-indicator safe area (so content doesn't sit under it) */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* When a modal/drawer is open the background thread should not scroll under it. */
+body[data-scroll-lock="on"] {
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* iOS Safari: inputs under 16px trigger zoom-in on focus. Clamp at 16 on phones. */
+@media (max-width: 767px) {
+  textarea, input[type="text"], input[type="email"], input[type="tel"], input[type="number"] {
+    font-size: 16px !important;
+    line-height: 1.4;
+  }
 }
 
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+}
+
+/* Long-press text selection stays opt-in on buttons/UI chrome */
+button, [role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Enable smooth momentum scroll inside overflow containers on iOS */
+.overflow-y-auto, .overflow-x-auto, .overflow-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 *:focus { outline: none; }

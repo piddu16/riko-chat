@@ -69,7 +69,14 @@ export function Composer({
   };
 
   return (
-    <div className="w-full px-4 pb-4 md:pb-6">
+    <div
+      className="w-full px-4"
+      style={{
+        // iOS home-indicator / Android gesture area
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+        paddingTop: 4,
+      }}
+    >
       <div
         className="max-w-3xl mx-auto"
         onDragOver={onDragOver}

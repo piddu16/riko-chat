@@ -21,20 +21,27 @@ export const metadata: Metadata = {
     "Chat-first AI CFO that reads directly from TallyPrime. Ask about cash, receivables, GST, stock — get answers grounded in your books.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover" as const,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${spaceGrotesk.variable} h-full antialiased`}
+      className={`${inter.variable} ${spaceGrotesk.variable} antialiased`}
     >
       <head>
         {/* Runs before first paint — sets data-theme from localStorage so
             there's no light/dark flash on load. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-full h-full">{children}</body>
+      <body>{children}</body>
     </html>
   );
 }

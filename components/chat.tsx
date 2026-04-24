@@ -74,12 +74,36 @@ export function Chat() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  /* Auto-scroll when messages change */
+  /* Smart auto-scroll: only follow-to-bottom if the user is already near it.
+   *  Prevents yanking a user who scrolled up to read older messages. */
   useEffect(() => {
     const el = threadRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const nearBottom = distanceFromBottom < 120;
+    if (nearBottom) {
+      // Use rAF so layout settles (esp. when an artifact just rendered)
+      requestAnimationFrame(() => {
+        el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+      });
+    }
   }, [conversations, activeId, pending]);
+
+  /* Body scroll lock whenever a full-screen overlay is visible (modal / drawer / mobile sidebar).
+   *  Prevents "double scroll" where the background thread shifts under the panel. */
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const lock =
+      showOnboarding ||
+      sourceTraceId !== null ||
+      (isMobile && sidebarOpen);
+    if (lock) {
+      document.body.setAttribute("data-scroll-lock", "on");
+    } else {
+      document.body.removeAttribute("data-scroll-lock");
+    }
+    return () => document.body.removeAttribute("data-scroll-lock");
+  }, [showOnboarding, sourceTraceId, isMobile, sidebarOpen]);
 
   const activeConv = conversations.find((c) => c.id === activeId) ?? null;
   const messages: Message[] = activeConv?.messages ?? [];
@@ -271,8 +295,14 @@ export function Chat() {
 
   return (
     <div
-      className="flex flex-col h-screen max-h-screen overflow-hidden"
-      style={{ background: "var(--bg-primary)" }}
+      className="flex flex-col overflow-hidden"
+      style={{
+        background: "var(--bg-primary)",
+        // svh = small viewport height (accounts for iOS Safari URL bar)
+        // fallback to 100vh for browsers without svh support
+        height: "100svh",
+        maxHeight: "100svh",
+      }}
     >
       <SystemHealth />
 

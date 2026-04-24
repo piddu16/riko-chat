@@ -63,7 +63,7 @@ export function EmptyState({
   const headline = userName ? `${greeting}, ${userName}` : greeting;
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-full py-10 md:py-16 px-4">
+    <div className="flex flex-col items-center py-8 md:py-14 px-4 pb-16">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
