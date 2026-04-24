@@ -24,6 +24,9 @@ export interface AssistantMessage {
    *  or a separate view on mobile. Only id + title + kind travel on the
    *  message; the full artifact lives in the conversation's canvasArtifacts. */
   canvasRefs?: CanvasRef[];
+  /** Trace id — when set, users can tap "View sources" to see the exact
+   *  Tally vouchers that produced the answer. */
+  traceId?: string;
 }
 
 /** Pointer stored on a message — opens the referenced artifact in the canvas. */
@@ -174,6 +177,15 @@ export interface InvoiceArtifact {
   total: number;
   amountInWords: string;
   notes?: string;
+}
+
+/* ── Pending action (yesterday's commitment → today's resolution) ── */
+
+export interface PendingAction {
+  id: string;
+  verb: string;     // "Call Nykaa"
+  context: string;  // "about ₹12.6L overdue"
+  setAt: string;
 }
 
 /* ── Conversation shape (for history/persistence) ── */

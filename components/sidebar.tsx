@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Plus, MessageSquareText, Settings, Sparkles } from "lucide-react";
+import { MessageSquareText, Sparkles } from "lucide-react";
 import type { Conversation } from "@/lib/types";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -50,23 +50,19 @@ export function Sidebar({
         >
           Riko
         </span>
-        <span className="text-[10px] ml-auto uppercase tracking-wider" style={{ color: "var(--text-4)" }}>
-          demo
-        </span>
       </div>
 
       {/* New chat */}
       <div className="px-3 pt-3">
         <button
           onClick={onNew}
-          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-colors"
+          className="w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium cursor-pointer transition-colors"
           style={{
             background: "var(--bg-surface)",
             color: "var(--text-1)",
             border: "1px solid var(--border)",
           }}
         >
-          <Plus size={14} />
           New chat
         </button>
       </div>
@@ -108,17 +104,10 @@ export function Sidebar({
 
       {/* Footer */}
       <div
-        className="px-3 py-3 flex-shrink-0 space-y-0.5"
+        className="px-3 py-3 flex-shrink-0"
         style={{ borderTop: "1px solid var(--border)" }}
       >
         <ThemeToggle />
-        <button
-          className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-xs cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
-          style={{ color: "var(--text-3)" }}
-        >
-          <Settings size={12} />
-          Settings
-        </button>
       </div>
     </aside>
   );

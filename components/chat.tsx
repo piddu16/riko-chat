@@ -10,11 +10,15 @@ import type {
   CanvasArtifact,
 } from "@/lib/types";
 import { Sidebar } from "./sidebar";
-import { Composer } from "./composer";
+import { Composer, type ComposerSubmit } from "./composer";
 import { EmptyState } from "./empty-state";
 import { MessageRenderer } from "./message";
 import { Canvas } from "./canvas/canvas";
 import { ThemeToggle } from "./theme-toggle";
+import { SystemHealth } from "./system-health";
+import { SourceDrawer } from "./source-drawer";
+import { OnboardingModal } from "./onboarding";
+import { usePersonalization, greetingFor } from "@/lib/personalization";
 
 type MobileView = "chat" | "canvas";
 
@@ -28,7 +32,31 @@ export function Chat() {
   const [canvasOpen, setCanvasOpen] = useState(false);
   const [activeCanvasId, setActiveCanvasId] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<MobileView>("chat");
+  const [sourceTraceId, setSourceTraceId] = useState<string | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const threadRef = useRef<HTMLDivElement>(null);
+
+  const {
+    mounted: personalMounted,
+    name,
+    onboarded,
+    whatsappOptIn,
+    streakDays,
+    pendingAction,
+    setName,
+    markOnboarded,
+    setWhatsappOptIn,
+    setPendingAction,
+  } = usePersonalization();
+
+  /* Show onboarding on first visit (after personalization hydrates). */
+  useEffect(() => {
+    if (personalMounted && !onboarded) {
+      // small delay so initial paint feels calm
+      const t = setTimeout(() => setShowOnboarding(true), 350);
+      return () => clearTimeout(t);
+    }
+  }, [personalMounted, onboarded]);
 
   /* Responsive detection */
   useEffect(() => {
@@ -95,13 +123,21 @@ export function Chat() {
     if (isMobile) setMobileView("chat");
   }, [isMobile]);
 
-  const sendQuery = useCallback(
-    async (query: string) => {
-      const convId = ensureActiveConv(query);
+  const sendPayload = useCallback(
+    async (payload: ComposerSubmit) => {
+      const labelForTitle = payload.query ?? (payload.file ? payload.file.name : "New chat");
+      const convId = ensureActiveConv(labelForTitle);
+
+      const userContent = payload.file
+        ? payload.query
+          ? `${payload.query}\n\n📎 ${payload.file.name}`
+          : `📎 ${payload.file.name}`
+        : payload.query ?? "";
+
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: "user",
-        content: query,
+        content: userContent,
         createdAt: new Date().toISOString(),
       };
 
@@ -112,7 +148,7 @@ export function Chat() {
                 ...c,
                 title:
                   c.messages.length === 0
-                    ? query.slice(0, 40) + (query.length > 40 ? "…" : "")
+                    ? labelForTitle.slice(0, 40) + (labelForTitle.length > 40 ? "…" : "")
                     : c.title,
                 messages: [...c.messages, userMsg],
                 updatedAt: new Date().toISOString(),
@@ -126,7 +162,11 @@ export function Chat() {
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query }),
+          body: JSON.stringify(
+            payload.file
+              ? { file: payload.file, note: payload.query }
+              : { query: payload.query },
+          ),
         });
         if (!res.ok) throw new Error(`API error: ${res.status}`);
         const data = (await res.json()) as {
@@ -149,7 +189,17 @@ export function Chat() {
           ),
         );
 
-        // Auto-open the first artifact from this response
+        // If the response has a WhatsApp-ish verb, stash it as a pending action
+        // so it re-surfaces tomorrow. This is the "close the loop" ritual.
+        if (data.message.action && (data.message.action.verb === "whatsapp" || data.message.action.verb === "remind")) {
+          setPendingAction({
+            id: data.message.id,
+            verb: data.message.action.label,
+            context: data.message.answer,
+            setAt: new Date().toISOString(),
+          });
+        }
+
         if (data.canvasArtifacts && data.canvasArtifacts.length > 0) {
           const first = data.canvasArtifacts[0];
           setActiveCanvasId(first.id);
@@ -175,7 +225,7 @@ export function Chat() {
         setPending(false);
       }
     },
-    [ensureActiveConv, isMobile],
+    [ensureActiveConv, isMobile, setPendingAction],
   );
 
   const handleNew = () => {
@@ -199,195 +249,230 @@ export function Chat() {
     if (isMobile) setSidebarOpen(false);
   };
 
-  /* ─ Layout: sidebar + chat column + (canvas pane on desktop when open) ─ */
+  const resolveYesterday = (outcome: "done" | "snooze" | "skip") => {
+    if (outcome === "snooze") {
+      // Keep pendingAction, do nothing
+      return;
+    }
+    setPendingAction(null);
+    if (outcome === "done") {
+      // Could seed a congrats message — keeping UX quiet for now.
+    }
+  };
+
+  const handleOnboardingComplete = (option: "tally" | "excel" | "demo") => {
+    markOnboarded();
+    setShowOnboarding(false);
+    // Option doesn't change behavior in the mock — all three land at the same demo data.
+    void option;
+  };
+
   const showCanvasPane = isDesktop && canvasOpen && hasCanvas;
 
   return (
     <div
-      className="flex h-screen max-h-screen overflow-hidden"
+      className="flex flex-col h-screen max-h-screen overflow-hidden"
       style={{ background: "var(--bg-primary)" }}
     >
-      {/* Sidebar */}
-      {isMobile ? (
-        <AnimatePresence>
-          {sidebarOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setSidebarOpen(false)}
-                className="fixed inset-0 z-40"
-                style={{ background: "var(--overlay)" }}
-              />
-              <motion.div
-                initial={{ x: -280 }}
-                animate={{ x: 0 }}
-                exit={{ x: -280 }}
-                transition={{ duration: 0.22 }}
-                className="fixed inset-y-0 left-0 z-50"
-              >
-                <Sidebar
-                  conversations={conversations}
-                  activeId={activeId}
-                  onSelect={handleSelect}
-                  onNew={handleNew}
-                  collapsed={false}
+      <SystemHealth />
+
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Sidebar */}
+        {isMobile ? (
+          <AnimatePresence>
+            {sidebarOpen && (
+              <>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setSidebarOpen(false)}
+                  className="fixed inset-0 z-40"
+                  style={{ background: "var(--overlay)" }}
                 />
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-      ) : (
-        <Sidebar
-          conversations={conversations}
-          activeId={activeId}
-          onSelect={handleSelect}
-          onNew={handleNew}
-          collapsed={!sidebarOpen}
-        />
-      )}
-
-      {/* Main content: chat column + optional canvas pane */}
-      <div className="flex flex-1 min-w-0">
-        {/* CHAT COLUMN — hidden on mobile when canvas view is active */}
-        <main
-          className={`flex-1 flex flex-col min-w-0 ${
-            isMobile && mobileView === "canvas" ? "hidden" : ""
-          }`}
-        >
-          {/* Top bar */}
-          <header
-            className="h-14 flex items-center justify-between px-4 flex-shrink-0"
-            style={{ borderBottom: "1px solid var(--border)" }}
-          >
-            <div className="flex items-center gap-2">
-              <button
-                aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-                onClick={() => setSidebarOpen((v) => !v)}
-                className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
-                style={{ color: "var(--text-3)" }}
-              >
-                {sidebarOpen && isMobile ? <X size={16} /> : <Menu size={16} />}
-              </button>
-            </div>
-            <span
-              className="text-xs font-medium truncate mx-3 flex-1 text-center"
-              style={{ color: "var(--text-2)" }}
-            >
-              {activeConv?.title ?? "Riko"}
-            </span>
-            <div className="flex items-center justify-end gap-0.5">
-              <ThemeToggle compact />
-              {/* Mobile: switch to canvas view */}
-              {isMobile && hasCanvas && (
-                <button
-                  aria-label="Open canvas"
-                  onClick={() => setMobileView("canvas")}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
-                  style={{ color: "var(--green)" }}
+                <motion.div
+                  initial={{ x: -280 }}
+                  animate={{ x: 0 }}
+                  exit={{ x: -280 }}
+                  transition={{ duration: 0.22 }}
+                  className="fixed inset-y-0 left-0 z-50"
                 >
-                  <PanelRight size={16} />
-                </button>
-              )}
-              {/* Desktop: re-open canvas if closed */}
-              {isDesktop && hasCanvas && !canvasOpen && (
-                <button
-                  aria-label="Re-open canvas"
-                  onClick={() => setCanvasOpen(true)}
-                  className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
-                  style={{ color: "var(--green)" }}
-                  title="Re-open canvas"
-                >
-                  <PanelRight size={16} />
-                </button>
-              )}
-            </div>
-          </header>
-
-          {/* Thread / empty state */}
-          <div ref={threadRef} className="flex-1 overflow-y-auto">
-            {hasMessages ? (
-              <div
-                className={`mx-auto px-4 py-6 md:px-6 md:py-8 ${
-                  showCanvasPane ? "max-w-2xl" : "max-w-3xl"
-                }`}
-              >
-                {messages.map((m) => (
-                  <MessageRenderer
-                    key={m.id}
-                    message={m}
-                    onOpenCanvas={openCanvasArtifact}
+                  <Sidebar
+                    conversations={conversations}
+                    activeId={activeId}
+                    onSelect={handleSelect}
+                    onNew={handleNew}
+                    collapsed={false}
                   />
-                ))}
-                {pending && <PendingDots />}
-              </div>
-            ) : (
-              <EmptyState onSeed={(q) => sendQuery(q)} />
+                </motion.div>
+              </>
             )}
-          </div>
+          </AnimatePresence>
+        ) : (
+          <Sidebar
+            conversations={conversations}
+            activeId={activeId}
+            onSelect={handleSelect}
+            onNew={handleNew}
+            collapsed={!sidebarOpen}
+          />
+        )}
 
-          {/* Composer */}
-          <Composer onSubmit={sendQuery} pending={pending} />
-        </main>
-
-        {/* DESKTOP CANVAS PANE */}
-        <AnimatePresence initial={false}>
-          {showCanvasPane && (
-            <motion.div
-              key="canvas-desktop"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: "min(760px, 55%)", opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.28, ease: "easeOut" }}
-              style={{ minWidth: 0, overflow: "hidden", flexShrink: 0 }}
-            >
-              <Canvas
-                artifacts={canvasArtifacts}
-                activeId={activeCanvasId}
-                onSelect={setActiveCanvasId}
-                onClose={closeCanvas}
-                variant="split"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* MOBILE CANVAS VIEW (full-screen, replaces chat) */}
-        {isMobile && mobileView === "canvas" && hasCanvas && (
-          <main className="flex-1 flex flex-col min-w-0">
-            {/* Mobile canvas header: back-to-chat button */}
+        {/* Main: chat column + optional canvas pane */}
+        <div className="flex flex-1 min-w-0">
+          <main
+            className={`flex-1 flex flex-col min-w-0 ${
+              isMobile && mobileView === "canvas" ? "hidden" : ""
+            }`}
+          >
+            {/* Top bar */}
             <header
-              className="h-14 flex items-center px-3 gap-2 flex-shrink-0"
+              className="h-14 flex items-center justify-between px-4 flex-shrink-0"
               style={{ borderBottom: "1px solid var(--border)" }}
             >
-              <button
-                aria-label="Back to chat"
-                onClick={() => setMobileView("chat")}
-                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
+              <div className="flex items-center gap-2">
+                <button
+                  aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+                  onClick={() => setSidebarOpen((v) => !v)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
+                  style={{ color: "var(--text-3)" }}
+                >
+                  {sidebarOpen && isMobile ? <X size={16} /> : <Menu size={16} />}
+                </button>
+              </div>
+              <span
+                className="text-xs font-medium truncate mx-3 flex-1 text-center"
                 style={{ color: "var(--text-2)" }}
               >
-                <MessageSquare size={14} />
-                Chat
-              </button>
+                {activeConv?.title ?? "Riko"}
+              </span>
+              <div className="flex items-center justify-end gap-0.5">
+                <ThemeToggle compact />
+                {isMobile && hasCanvas && (
+                  <button
+                    aria-label="Open canvas"
+                    onClick={() => setMobileView("canvas")}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
+                    style={{ color: "var(--green)" }}
+                  >
+                    <PanelRight size={16} />
+                  </button>
+                )}
+                {isDesktop && hasCanvas && !canvasOpen && (
+                  <button
+                    aria-label="Re-open canvas"
+                    onClick={() => setCanvasOpen(true)}
+                    className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
+                    style={{ color: "var(--green)" }}
+                    title="Re-open canvas"
+                  >
+                    <PanelRight size={16} />
+                  </button>
+                )}
+              </div>
             </header>
-            <div className="flex-1 min-h-0">
-              <Canvas
-                artifacts={canvasArtifacts}
-                activeId={activeCanvasId}
-                onSelect={setActiveCanvasId}
-                onClose={() => setMobileView("chat")}
-                variant="full"
-              />
+
+            {/* Thread / empty state */}
+            <div ref={threadRef} className="flex-1 overflow-y-auto">
+              {hasMessages ? (
+                <div
+                  className={`mx-auto px-4 py-6 md:px-6 md:py-8 ${
+                    showCanvasPane ? "max-w-2xl" : "max-w-3xl"
+                  }`}
+                >
+                  {messages.map((m) => (
+                    <MessageRenderer
+                      key={m.id}
+                      message={m}
+                      onOpenCanvas={openCanvasArtifact}
+                      onOpenSources={setSourceTraceId}
+                    />
+                  ))}
+                  {pending && <PendingDots />}
+                </div>
+              ) : (
+                <EmptyState
+                  onSeed={(q) => sendPayload({ query: q })}
+                  greeting={greetingFor()}
+                  userName={name}
+                  streakDays={streakDays}
+                  pendingAction={pendingAction}
+                  onResolvePending={resolveYesterday}
+                  onToggleWhatsapp={() => setWhatsappOptIn(!whatsappOptIn)}
+                  whatsappOptIn={whatsappOptIn}
+                />
+              )}
             </div>
+
+            <Composer onSubmit={sendPayload} pending={pending} />
           </main>
-        )}
+
+          {/* Desktop canvas pane */}
+          <AnimatePresence initial={false}>
+            {showCanvasPane && (
+              <motion.div
+                key="canvas-desktop"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: "min(760px, 55%)", opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.28, ease: "easeOut" }}
+                style={{ minWidth: 0, overflow: "hidden", flexShrink: 0 }}
+              >
+                <Canvas
+                  artifacts={canvasArtifacts}
+                  activeId={activeCanvasId}
+                  onSelect={setActiveCanvasId}
+                  onClose={closeCanvas}
+                  variant="split"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Mobile full-screen canvas */}
+          {isMobile && mobileView === "canvas" && hasCanvas && (
+            <main className="flex-1 flex flex-col min-w-0">
+              <header
+                className="h-14 flex items-center px-3 gap-2 flex-shrink-0"
+                style={{ borderBottom: "1px solid var(--border)" }}
+              >
+                <button
+                  aria-label="Back to chat"
+                  onClick={() => setMobileView("chat")}
+                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
+                  style={{ color: "var(--text-2)" }}
+                >
+                  <MessageSquare size={14} />
+                  Chat
+                </button>
+              </header>
+              <div className="flex-1 min-h-0">
+                <Canvas
+                  artifacts={canvasArtifacts}
+                  activeId={activeCanvasId}
+                  onSelect={setActiveCanvasId}
+                  onClose={() => setMobileView("chat")}
+                  variant="full"
+                />
+              </div>
+            </main>
+          )}
+        </div>
       </div>
+
+      {/* Global overlays */}
+      <SourceDrawer traceId={sourceTraceId} onClose={() => setSourceTraceId(null)} />
+      <OnboardingModal
+        open={showOnboarding}
+        onComplete={handleOnboardingComplete}
+        onSetName={(n) => {
+          if (n) setName(n);
+        }}
+      />
     </div>
   );
 }
 
-/* Pending indicator */
 function PendingDots() {
   return (
     <div className="flex items-center gap-1.5 mb-8 h-6">

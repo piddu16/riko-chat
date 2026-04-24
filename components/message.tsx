@@ -2,21 +2,31 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { ChevronDown, Copy } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { Message, AssistantMessage } from "@/lib/types";
 import { ArtifactRenderer, ActionButton } from "./artifacts";
 import { CanvasPreviewCard } from "./canvas-preview-card";
+import { ShareButton } from "./share-button";
+import { FileSearch } from "lucide-react";
 
 /* ── Router ── */
 export function MessageRenderer({
   message,
   onOpenCanvas,
+  onOpenSources,
 }: {
   message: Message;
   onOpenCanvas?: (id: string) => void;
+  onOpenSources?: (traceId: string) => void;
 }) {
   if (message.role === "user") return <UserMessage content={message.content} />;
-  return <AssistantMessageRender message={message} onOpenCanvas={onOpenCanvas} />;
+  return (
+    <AssistantMessageRender
+      message={message}
+      onOpenCanvas={onOpenCanvas}
+      onOpenSources={onOpenSources}
+    />
+  );
 }
 
 /* ── User message — right-aligned, subtle ── */
@@ -46,9 +56,11 @@ function UserMessage({ content }: { content: string }) {
 function AssistantMessageRender({
   message,
   onOpenCanvas,
+  onOpenSources,
 }: {
   message: AssistantMessage;
   onOpenCanvas?: (id: string) => void;
+  onOpenSources?: (traceId: string) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -194,19 +206,22 @@ function AssistantMessageRender({
         </div>
       )}
 
-      {/* Layer 4 — ACTION */}
-      {message.action && (
-        <div className="flex items-center gap-2">
-          <ActionButton action={message.action} />
+      {/* Layer 4 — ACTION + meta actions row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {message.action && <ActionButton action={message.action} />}
+        <ShareButton message={message} />
+        {message.traceId && (
           <button
-            className="flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md cursor-pointer transition-colors"
+            onClick={() => onOpenSources?.(message.traceId!)}
+            className="flex items-center gap-1 text-[11px] px-2 py-1.5 rounded-md cursor-pointer transition-colors hover:bg-[var(--bg-hover)]"
             style={{ color: "var(--text-4)" }}
-            title="Copy"
+            title="See the exact Tally vouchers behind this answer"
           >
-            <Copy size={12} />
+            <FileSearch size={12} />
+            View sources
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </motion.div>
   );
 }

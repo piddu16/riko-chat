@@ -13,6 +13,7 @@ import {
   buildInvoiceArtifact,
 } from "./mock-data";
 import { formatINR } from "./format";
+import type { DetectionResult, UploadedFileMeta } from "./file-detector";
 
 export interface MockReply {
   message: Omit<AssistantMessage, "id" | "createdAt">;
@@ -46,6 +47,7 @@ export function mockResponse(query: string): MockReply {
         },
         action: { label: "Send to WhatsApp", verb: "whatsapp" },
         canvasRefs: [refFor(art, "Revenue ₹36.1L · EBITDA ₹-4.3L · Runway 9 days")],
+        traceId: "top-customers",
       },
       canvasArtifacts: [art],
     };
@@ -63,6 +65,7 @@ export function mockResponse(query: string): MockReply {
         },
         action: { label: `Remind ${GST.missingFromPortal} suppliers`, verb: "whatsapp" },
         canvasRefs: [refFor(art, `${GST.totalTallyInvoices} invoices · ${GST.matched + GST.manualMatched} matched`)],
+        traceId: "gst-reconciliation",
       },
       canvasArtifacts: [art],
     };
@@ -136,6 +139,7 @@ export function mockResponse(query: string): MockReply {
             sublabel: "🔴 critical · extend with collections",
           },
         ],
+        traceId: "runway-cash",
       },
     };
   }
@@ -171,6 +175,7 @@ export function mockResponse(query: string): MockReply {
             })),
           },
         ],
+        traceId: "overdue-receivables",
       },
     };
   }
@@ -202,6 +207,7 @@ export function mockResponse(query: string): MockReply {
           },
         ],
         sources: { summary: "Sales vouchers · GROUP BY party · FY 2025-26" },
+        traceId: "top-customers",
       },
     };
   }
@@ -344,4 +350,179 @@ export function mockResponse(query: string): MockReply {
       ],
     },
   };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FILE UPLOAD RESPONDER
+   The copilot moment: auto-detect what a dropped file is and
+   return the right structured response + canvas artifact.
+   ═══════════════════════════════════════════════════════════ */
+
+export function mockFileResponse(
+  meta: UploadedFileMeta,
+  detection: DetectionResult,
+): MockReply {
+  switch (detection.kind) {
+    case "bank-statement": {
+      const art = buildReconReportArtifact();
+      art.title = `Bank reconciliation — ${meta.name}`;
+      art.period = `Imported from ${meta.name} · ${(meta.size / 1024).toFixed(0)} KB`;
+      return {
+        message: {
+          role: "assistant",
+          answer: `Got it — ${detection.summary.toLowerCase()}. Parsed 147 lines, matched 129 to Tally vouchers, 18 need review.`,
+          calculation: {
+            rows: [
+              { label: "Lines parsed", value: "147" },
+              { label: "Auto-matched", value: "129", emphasis: true },
+              { label: "Needs review", value: "18" },
+              { label: "Unidentified credits", value: "3" },
+              { label: "Closing balance match", value: "✓ within ₹240" },
+            ],
+          },
+          sources: {
+            summary: `OCR + heuristic match against Tally · ${detection.signals.length} detection signals`,
+            details: detection.signals.map((s) => ({ label: "Signal", value: s })),
+          },
+          action: { label: "Review the 18 unmatched", verb: "open" },
+          canvasRefs: [refFor(art, "147 lines · 129 auto-matched · 18 to review")],
+          traceId: "gst-reconciliation",
+        },
+        canvasArtifacts: [art],
+      };
+    }
+
+    case "purchase-invoice": {
+      return {
+        message: {
+          role: "assistant",
+          answer: `Invoice read — Goat Brand Labs, ₹3,07,850, 3 line items. Draft Purchase voucher ready for your review.`,
+          calculation: {
+            rows: [
+              { label: "Vendor", value: "Goat Brand Labs Pvt Ltd" },
+              { label: "GSTIN", value: "27AAACG1234F1Z5" },
+              { label: "Invoice no.", value: "GBL/26/03/0114" },
+              { label: "Taxable value", value: formatINR(2_60_890) },
+              { label: "CGST 9% + SGST 9%", value: formatINR(46_960) },
+              { label: "Total", value: formatINR(3_07_850), emphasis: true },
+            ],
+          },
+          sources: {
+            summary: `OCR confidence 94% · ${meta.name}`,
+            details: detection.signals.map((s) => ({ label: "Signal", value: s })),
+          },
+          action: { label: "Post to Tally → goes for approval", verb: "record" },
+          artifacts: [
+            {
+              kind: "table",
+              title: "Line items read from invoice",
+              columns: ["Description", "Qty", "Rate", "Amount"],
+              rows: [
+                ["Glass jars — 100GM", "1,200", formatINR(142, { raw: true }), formatINR(1_70_400)],
+                ["Shrink wrap rolls", "80", formatINR(620, { raw: true }), formatINR(49_600)],
+                ["Cardboard cartons — 5-ply", "520", formatINR(80, { raw: true }), formatINR(41_600)],
+              ],
+              footer: "Will split against 'Packaging Materials' expense ledger",
+            },
+          ],
+          traceId: "gst-reconciliation",
+        },
+      };
+    }
+
+    case "expense-receipt": {
+      return {
+        message: {
+          role: "assistant",
+          answer: `Receipt read — Uber ride, ₹847, 14 Apr 2026. Drafting a Payment voucher against 'Travelling Expenses'.`,
+          calculation: {
+            rows: [
+              { label: "Vendor", value: "Uber India Systems" },
+              { label: "Date", value: "14 Apr 2026" },
+              { label: "Amount", value: formatINR(847), emphasis: true },
+              { label: "Category", value: "Travelling Expenses" },
+              { label: "Payment mode", value: "UPI (detected)" },
+            ],
+          },
+          sources: {
+            summary: `OCR 91% confidence · ${meta.name}`,
+          },
+          action: { label: "Post to Tally", verb: "record" },
+        },
+      };
+    }
+
+    case "sales-request": {
+      const art = buildInvoiceArtifact();
+      art.title = `Draft invoice from ${meta.name}`;
+      return {
+        message: {
+          role: "assistant",
+          answer: `PO processed. Drafted Invoice ${art.invoiceNo} for ${formatINR(art.total)} — review + post.`,
+          sources: { summary: `Parsed from ${meta.name}` },
+          action: { label: "Post to Tally + WhatsApp to buyer", verb: "whatsapp" },
+          canvasRefs: [refFor(art, `${art.invoiceNo} · ${formatINR(art.total)}`)],
+        },
+        canvasArtifacts: [art],
+      };
+    }
+
+    case "batch-upload": {
+      return {
+        message: {
+          role: "assistant",
+          answer: `${meta.name} has 284 rows. Previewing — most look like Purchase vouchers against vendors Tally already knows.`,
+          calculation: {
+            rows: [
+              { label: "Total rows", value: "284" },
+              { label: "Recognised vendors", value: "241" },
+              { label: "Unknown vendors", value: "23 (will flag)" },
+              { label: "Malformed rows", value: "20" },
+              { label: "Ready to draft", value: "241", emphasis: true },
+            ],
+          },
+          sources: {
+            summary: `Detected as batch from spreadsheet shape · ${meta.name}`,
+          },
+          action: { label: "Preview the 241 drafts", verb: "open" },
+        },
+      };
+    }
+
+    case "tally-export": {
+      return {
+        message: {
+          role: "assistant",
+          answer: `Tally export recognised. If this is a Sales Register I can ingest it — otherwise paste the report name and I'll route it.`,
+          sources: { summary: `${meta.name} (${(meta.size / 1024).toFixed(0)} KB)` },
+        },
+      };
+    }
+
+    default: {
+      return {
+        message: {
+          role: "assistant",
+          answer: `Got ${meta.name}. Tell me what this is — a bank statement, an invoice, a receipt, or something else?`,
+          sources: {
+            summary: "Couldn't auto-classify — filename + size didn't match a known pattern",
+            details: detection.signals.map((s) => ({ label: "Signal", value: s })),
+          },
+          artifacts: [
+            {
+              kind: "action-list",
+              title: "Classify this file",
+              items: [
+                { label: "Bank statement", action: { label: "Yes", verb: "open" } },
+                { label: "Purchase invoice", action: { label: "Yes", verb: "open" } },
+                { label: "Expense receipt", action: { label: "Yes", verb: "open" } },
+                { label: "Sales order / PO", action: { label: "Yes", verb: "open" } },
+                { label: "Something else", action: { label: "Describe", verb: "open" } },
+              ],
+            },
+          ],
+        },
+      };
+    }
+  }
 }
