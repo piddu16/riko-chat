@@ -36,6 +36,11 @@ export function ReconReportRenderer({ artifact }: { artifact: ReconReportArtifac
   const { summary, lines } = artifact;
   const matchRate = Math.round(((summary.matched + summary.manualMatched) / summary.total) * 100);
 
+  // Split "March 2026 · 2B cut-off 14 Apr 2026" into a tight title + caption
+  // so the heading doesn't wrap mid-phrase on 375px viewports.
+  const [periodMain, ...periodRest] = artifact.period.split(" · ");
+  const periodCaption = periodRest.join(" · ");
+
   const filtered = filter === "all" ? lines : lines.filter((l) => l.status === filter);
 
   const handleAction = (id: string, label: string) => {
@@ -50,16 +55,21 @@ export function ReconReportRenderer({ artifact }: { artifact: ReconReportArtifac
         style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
       >
         <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
-          <div>
+          <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-wider font-semibold mb-1" style={{ color: "var(--purple)" }}>
               GSTR-2B Reconciliation
             </p>
             <h2
-              className="text-lg md:text-xl font-bold"
+              className="text-lg md:text-xl font-bold leading-tight"
               style={{ color: "var(--text-1)", fontFamily: "var(--font-display), 'Space Grotesk', sans-serif" }}
             >
-              {artifact.period}
+              {periodMain}
             </h2>
+            {periodCaption && (
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--text-4)" }}>
+                {periodCaption}
+              </p>
+            )}
           </div>
           <div className="text-right">
             <p

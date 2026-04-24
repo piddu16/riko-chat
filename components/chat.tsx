@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, MessageSquare, PanelRight } from "lucide-react";
+import { Menu, X, PanelRight } from "lucide-react";
 import type {
   Conversation,
   Message,
@@ -459,32 +459,17 @@ export function Chat() {
             )}
           </AnimatePresence>
 
-          {/* Mobile full-screen canvas */}
+          {/* Mobile full-screen canvas — Canvas carries its own back button */}
           {isMobile && mobileView === "canvas" && hasCanvas && (
             <main className="flex-1 flex flex-col min-w-0">
-              <header
-                className="h-14 flex items-center px-3 gap-2 flex-shrink-0"
-                style={{ borderBottom: "1px solid var(--border)" }}
-              >
-                <button
-                  aria-label="Back to chat"
-                  onClick={() => setMobileView("chat")}
-                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-surface)]"
-                  style={{ color: "var(--text-2)" }}
-                >
-                  <MessageSquare size={14} />
-                  Chat
-                </button>
-              </header>
-              <div className="flex-1 min-h-0">
-                <Canvas
-                  artifacts={canvasArtifacts}
-                  activeId={activeCanvasId}
-                  onSelect={setActiveCanvasId}
-                  onClose={() => setMobileView("chat")}
-                  variant="full"
-                />
-              </div>
+              <Canvas
+                artifacts={canvasArtifacts}
+                activeId={activeCanvasId}
+                onSelect={setActiveCanvasId}
+                onClose={() => setMobileView("chat")}
+                onBackToChat={() => setMobileView("chat")}
+                variant="full"
+              />
             </main>
           )}
         </div>

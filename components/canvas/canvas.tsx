@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, BarChart3, FileText, GitCompareArrows, Receipt } from "lucide-react";
+import { X, BarChart3, FileText, GitCompareArrows, Receipt, MessageSquare } from "lucide-react";
 import type { CanvasArtifact } from "@/lib/types";
 import { RevenueChartRenderer } from "./revenue-chart";
 import { MisReportRenderer } from "./mis-report";
@@ -23,12 +23,15 @@ export function Canvas({
   activeId,
   onSelect,
   onClose,
+  onBackToChat,
   variant,
 }: {
   artifacts: CanvasArtifact[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onClose: () => void;
+  /** Mobile-only — renders a back-to-chat button in the header. */
+  onBackToChat?: () => void;
   /** "split" = desktop embedded right pane · "full" = mobile full-screen */
   variant: "split" | "full";
 }) {
@@ -44,12 +47,23 @@ export function Canvas({
         borderLeft: variant === "split" ? "1px solid var(--border)" : undefined,
       }}
     >
-      {/* Header: tab bar + close */}
+      {/* Header: [back] + tab bar + close */}
       <header
         className="flex items-center h-14 px-3 gap-2 flex-shrink-0"
         style={{ borderBottom: "1px solid var(--border)" }}
       >
-        <div className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar">
+        {onBackToChat && (
+          <button
+            aria-label="Back to chat"
+            onClick={onBackToChat}
+            className="flex items-center gap-1 text-xs font-medium px-2 py-1.5 rounded-lg cursor-pointer transition-colors hover:bg-[var(--bg-surface)] flex-shrink-0"
+            style={{ color: "var(--text-2)" }}
+          >
+            <MessageSquare size={13} />
+            Chat
+          </button>
+        )}
+        <div className="flex-1 flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0">
           {artifacts.map((a) => {
             const Icon = KIND_META[a.kind].icon;
             const isActive = a.id === active.id;
@@ -65,7 +79,7 @@ export function Canvas({
                 }}
               >
                 <Icon size={13} style={{ color: isActive ? "var(--green)" : "var(--text-4)" }} />
-                <span className="max-w-[180px] truncate">{a.title}</span>
+                <span className="max-w-[140px] md:max-w-[180px] truncate">{a.title}</span>
               </button>
             );
           })}
